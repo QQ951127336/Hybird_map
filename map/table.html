@@ -1,0 +1,120 @@
+﻿
+<!doctype html>
+<html>
+
+<head>
+    <title>Line Chart</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <script src="http://www.chartjs.org/dist/2.7.0/Chart.bundle.js"></script>
+    <script src="http://www.chartjs.org/samples/latest/utils.js"></script>
+    <style>
+
+    </style>
+</head>
+
+<>
+	<div  style="background-color:#FFA500;width:100%;">
+		<br>
+		<br>
+       <h1 style="text-align:center;">虎丘地区银行查询系统</h1>
+	   <br>
+	   
+	
+	</div>
+	<button type="button" onclick="window.location.href='map.html'">返回</button>
+    <input type="text" id="bank_name"/>
+<button type="button" onclick="check()">查看</button>
+    <div style="width:100%;">
+
+        <canvas id="myCanvas" width="200" height="100"></canvas>
+    </div>
+    <br>
+    <br>
+  
+    <script type="text/javascript">
+        function check() {
+            name =  document.getElementById("bank_name").value;
+            if (name ==""||name ==null)
+            {
+                alert("不能为空");
+                return;
+            }
+            alert(name)
+            connDB(name);
+
+        }
+
+        	var interest_rate = new Array(0,0,0,0,0,0,0,0,0,0,0,0);
+	function connDB(name){
+
+	    alert("开始连接数据库")
+		conn = new ActiveXObject("ADODB.Connection");
+		conn.Open("Provider=SQLOLEDB.1;Data Source=127.0.0.1,1433;User ID=sa;Password=school1234567890;Initial Catalog=Highschool");
+		var rate_sql = conn.Execute("select * from interest_rate WHERE name='"+name+"';");
+		var i = 1;
+		var bank_amount = 0;
+		while(i<=12){
+
+
+		interest_rate[bank_amount] = rate_sql.Fields(i).value;
+		i++;
+		bank_amount++;
+		}
+        var ctx = document.getElementById("myCanvas").getContext("2d");
+        window.myLine = new Chart(ctx, config);
+	}
+
+        var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        var config = {
+            type: 'line',
+            data: {
+                labels: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+                datasets: [{
+                    label: "银行利率变化",
+                    backgroundColor: window.chartColors.red,
+                    borderColor: window.chartColors.red,
+                    data: interest_rate,
+                    fill: false,
+                }]
+            },
+            options: {
+                responsive: true,
+                title:{
+                    display:true,
+                    text:''
+                },
+                tooltips: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                hover: {
+                    mode: 'nearest',
+                    intersect: true
+                },
+                scales: {
+                    xAxes: [{
+                        display: true,
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Month'
+                        }
+                    }],
+                    yAxes: [{
+                        display: true,
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Value'
+                        }
+                    }]
+                }
+            }
+        };
+
+        window.onload = function() {
+            var ctx = document.getElementById("myCanvas").getContext("2d");
+            window.myLine = new Chart(ctx, config);
+        };
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,384 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+    <title>虎丘地图	</title>
+    <!--引用地图API-->
+    <script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=zchsyfferdT1bbjPeRvItKzFgzdGuWu1"></script>
+
+
+    <style>
+    canvas{
+        -moz-user-select: none;
+        -webkit-user-select: none;
+        -ms-user-select: none;
+    }
+    </style>
+  </head>
+  
+  <body>
+    <!--地图容器-->
+	<div  style="background-color:#FFA500;">
+		<br>
+		<br>
+       <h1 style="text-align:center;">虎丘地区银行查询系统</h1>
+	   <br>
+	   
+	
+	</div>
+	<div id = "main">
+	<br>
+	  <div>
+	   <button type="button" onclick="search_bank()">银行信息</button>
+        <button type="button" onclick="search_bus()">附近公交站</button>
+		  <input  type="text" id = "search_name"/>
+		  <button type = "button" onclick="search_special()">搜索</button>
+		  <button type = "button" id="show_table" onclick="show_table()">银行利率</button>
+	  </div>
+      <div style="width:1000px;height:550px;border:#ccc solid 1px;font-size:12px;float:left;" id="map"></div>
+	  <div style="float:left;margin-left:10px;">
+		  <div style="background-color:#FFAAAA;">
+		  <h2 style="margin-left:10px;">增加银行信息</h2><br>
+		  <p style="margin-left:10px;">银行名字：</p>
+		  <input style="margin-left:10px;" type="text" id = "bankName"><br>
+		  <p style="margin-left:10px;">地址：</p>
+		  <input style="margin-left:10px;" type="text" id = "bankLocation"><br>
+		  <p style="margin-left:10px;">电话:</p>
+		  <input style="margin-left:10px;" type="text" id = "bankPhone"><br>
+		  <p style="margin-left:10px;">x坐标</p>
+		  <input style="margin-left:10px;" type= "text" id = "bankX"><br>
+		  <p style="margin-left:10px;">y坐标</p>
+		  <input style="margin-left:10px;" type= "text" id = "bankY"><br>
+		  <p style="margin-left:10px;">图片:</p>
+		  <input type="file" id="images" multiple accept="image/*"  /> <br>
+		  <button type="button" onclick="add()">增加</button>
+		  </div>
+	  </div>
+	 </div>
+	 <div id = "table">
+		<div>
+        <canvas id="canvas"></canvas>
+    </div>
+    <br>
+    <br>
+
+	 </div>
+
+	  
+
+  <script type="text/javascript">
+  var ifDelete = 0;
+
+  function change_delete() {
+	  ifDelete = 1;
+  }
+  	var time = 10;
+
+	var image_input;
+	 function imgPreview(fileDom){
+        //判断是否支持FileReader
+        if (window.FileReader) {
+            var reader = new FileReader();
+        } else {
+            alert("您的设备不支持图片预览功能，如需该功能请升级您的设备！");
+        }
+
+        //获取文件
+        var file = fileDom.files[0];
+        var imageType = /^image\//;
+        //是否是图片
+        if (!imageType.test(file.type)) {
+            alert("请选择图片！");
+            return;
+        }
+        //读取完成
+        reader.onload = function(e) {
+            //获取图片dom
+            var img = document.getElementById("preview");
+            //图片路径设置为读取的图片
+            image_input = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+	function add()
+	{
+			 var name = document.getElementById("bankName").value;
+	 var local = document.getElementById("bankLocation").value;
+	 var phone = document.getElementById("bankPhone").value;
+	 var x = document.getElementById("bankX").value;
+	 var image = document.getElementById("images").value;
+	 var y = document.getElementById("bankY").value;
+	 
+	 if( x==null||x==""||y==null||y==""||name==""||name==null||phone==null||phone==""||local==""||local==null||image==""||image==null)
+	 {
+		alert("内容不能为空。");
+	 }
+	 else
+	 {
+		banks[bank_amount] = new bank(x,y,name,local,phone,image);
+		makeMarker1(bank_amount,image);
+		bank_amount++;
+		var tmp = "INSERT INTO bank (x,y,name, local, phone) \n VALUES ('"+x+"','"+y+"','"+name+"','"+local+"','"+phone+"');";
+		conn.Execute(tmp);
+	 }
+	 alert("添加成功！");
+	
+	}
+    //创建和初始化地图函数：
+    function initMap(){
+      createMap();//创建地图
+      setMapEvent();//设置地图事件
+      addMapControl();//向地图添加控件
+      addMapOverlay();//向地图添加覆盖物
+    }
+    function createMap(){ 
+      map = new BMap.Map("map"); 
+      map.centerAndZoom(new BMap.Point(120.573406,31.299477),17);
+    }
+    function setMapEvent(){
+      map.enableScrollWheelZoom();
+      map.enableKeyboard();
+      map.enableDragging();
+      map.enableDoubleClickZoom()
+    }
+    function addClickHandler(target,window){
+      target.addEventListener("click",function(){
+        target.openInfoWindow(window);
+      });
+    }
+    function addMapOverlay(){
+    }
+	var banks = new Array(100);
+	var bank_amount = 0;
+	var conn;
+			//链接数据库
+	function connDB(){
+		
+		conn = new ActiveXObject("ADODB.Connection");
+		conn.Open("Provider=SQLOLEDB.1;Data Source=127.0.0.1,1433;User ID=sa;Password=school1234567890;Initial Catalog=Highschool");
+		var x_sql = conn.Execute("select x from bank");
+		var y_sql = conn.Execute("select y from bank");
+		var name_sql = conn.Execute("select name from bank");
+		var local_sql = conn.Execute("select local from bank");
+		var phone_sql = conn.Execute("select phone from bank");
+		var img_sql = conn.Execute("select image from bank;");
+		if(time<x_sql.Fields.Count)
+			time = x_sql.Fields.Count;
+		
+		var i = 0;
+		while(!x_sql.EOF){
+		
+	
+		banks[bank_amount] = new bank (x_sql.Fields(i).value,y_sql.Fields(i).value,name_sql.Fields(i).value,local_sql.Fields(i).value,phone_sql.Fields(i).value,img_sql.Fields(i).value);
+		x_sql.moveNext();
+		y_sql.moveNext();
+		name_sql.moveNext();
+		local_sql.moveNext();
+		phone_sql.moveNext();
+		img_sql.moveNext();
+		
+		bank_amount++;
+		} 
+		
+	
+		
+	}
+	function bank(x,y,name,local,phone,img)
+	{
+	this.x = x;
+	this.y = y;
+	this.name = name;
+	this.local = local;
+	this.img = img;
+	this.phone = phone;
+	
+	
+	}
+	
+    //向地图添加控件
+    function addMapControl(){
+      var scaleControl = new BMap.ScaleControl({anchor:BMAP_ANCHOR_BOTTOM_LEFT});
+      scaleControl.setUnit(BMAP_UNIT_IMPERIAL);
+      map.addControl(scaleControl);
+      var navControl = new BMap.NavigationControl({anchor:BMAP_ANCHOR_TOP_LEFT,type:BMAP_NAVIGATION_CONTROL_LARGE});
+      map.addControl(navControl);
+      var overviewControl = new BMap.OverviewMapControl({anchor:BMAP_ANCHOR_BOTTOM_RIGHT,isOpen:true});
+      map.addControl(overviewControl);
+    }
+		function addMarker(x,y)
+	{
+		var point = new BMap.Point(x,y);
+		var marker = new BMap.Marker(point);
+		map.addOverlay(marker);
+	}
+	var markers = new Array();
+
+
+	var images_tmp = new Array();
+	images_tmp[0] = "./a.jpg";
+	images_tmp[1] = "./b.jpg";
+	images_tmp[2] = "./c.jpg";
+	images_tmp[3] = "./d.jpg";
+
+	function makeMarker(i)
+	{
+	
+	var sContent = 	 "<h4 style='margin:0 0 5px 0;padding:0.2em 0'>名字："+banks[i].name+"</h4>" + 
+	"<img style='float:right;margin:4px' id='imgDemo' src='"+images_tmp[i%4]+"' width='139' height='104' />" + 
+	"<p style='margin:0;line-height:1.5;font-size:13px;text-indent:2em'>地址: "+banks[i].local+"</p>" + 
+	"<p style='margin:0;line-height:1.5;font-size:13px;text-indent:2em'>电话："+banks[i].phone+"</p>"+
+        "<button type='button' onclick='deletePoint("+i+")'>删除</button>"+
+		"<div>"+
+	"<p>金融理财,新手免费领480元红包,预期收益10%,p2p排名前十,7年稳健运营,人人贷理财资金银行存管,AAA信用认证,400万用户理财选招商银行 </p>"+
+	"<p>二十万元如何理财投资-京东理财,赚钱快/稳/准,新一代的理财神器,快点来体验!二十万元如何理财投资 就选京东理财,您身边的互联网理财</p>"+
+	"</div>";
+	
+	var point = new BMap.Point(banks[i].x,banks[i].y);
+	var marker = new BMap.Marker(point);
+	map.addOverlay(marker);
+        var label = new BMap.Label(i,{});
+	var infoWindow = new BMap.InfoWindow(sContent);
+	marker.addEventListener("click", function(){
+	   this.openInfoWindow(infoWindow);
+	   
+	});
+	
+	}
+		function makeMarker1(i,img)
+	{
+	
+	var sContent = 	 "<h4 style='margin:0 0 5px 0;padding:0.2em 0'>名字："+banks[i].name+"</h4>" + 
+	"<img style='float:right;margin:4px' id='imgDemo' src='"+img+"' width='139' height='104' />" + 
+	"<p style='margin:0;line-height:1.5;font-size:13px;text-indent:2em'>地址: "+banks[i].local+"</p>" + 
+	"<p style='margin:0;line-height:1.5;font-size:13px;text-indent:2em'>电话："+banks[i].phone+"</p>"+
+	"<button type='button' onclick='deletePoint("+i+")'>删除</button>"+
+	"<div>"+
+	"<p>金融理财,新手免费领480元红包,预期收益10%,p2p排名前十,7年稳健运营,人人贷理财资金银行存管,AAA信用认证,400万用户理财选招商银行 </p>"+
+	"<p>二十万元如何理财投资-京东理财,赚钱快/稳/准,新一代的理财神器,快点来体验!二十万元如何理财投资 就选京东理财,您身边的互联网理财</p>"+
+	"</div>";
+	
+	var point = new BMap.Point(banks[i].x,banks[i].y);
+	var marker = new BMap.Marker(point);
+	map.addOverlay(marker);
+	var infoWindow = new BMap.InfoWindow(sContent);
+	marker.addEventListener("click", function(){
+	   this.openInfoWindow(infoWindow);
+	   
+	});
+	
+	}
+		var opts = {
+				width : 250,     // 信息窗口宽度
+				height: 80,     // 信息窗口高度
+				title : "银行信息" , // 信息窗口标题
+				enableMessage:true//设置允许信息窗发送短息
+			   };
+	function search_bank()
+	{
+	createMap();
+	  setMapEvent();//设置地图事件
+      addMapControl();//向地图添加控件
+      addMapOverlay();//向地图添加覆盖物
+
+		
+		for(var i=0;i<bank_amount;i++)
+		{
+	
+		makeMarker(i);
+		
+		}
+	
+
+	}
+	function search_bus()
+	{
+	
+		createMap();
+		  	var local = new BMap.LocalSearch(map, {
+		renderOptions:{map: map}
+	});
+	local.search("虎丘区公交");
+	}
+		function addClickHandler(content,marker){
+		marker.addEventListener("click",function(e){
+			openInfo(content,e)}
+		);
+	}
+		function openInfo(content,e){
+		var p = e.target;
+		var point = new BMap.Point(p.getPosition().lng, p.getPosition().lat);
+		var infoWindow = new BMap.InfoWindow(content,opts);  // 创建信息窗口对象 
+		map.openInfoWindow(infoWindow,point); //开启信息窗口
+	}
+		function search_special(){
+		
+		var search_name = document.getElementById("search_name").value;
+		if(search_name == null || search_name == "")
+		{
+		alert("搜索内容为空");
+		return;
+		}
+		else
+		{
+			createMap();
+	  setMapEvent();//设置地图事件
+      addMapControl();//向地图添加控件
+      addMapOverlay();//向地图添加覆盖物
+		
+		for(var i=0;i<bank_amount;i++){
+		if(banks[i].name !=null)
+			{
+			if(banks[i].name.indexOf(search_name)>=0)
+				makeMarker(i);
+		}
+		}
+		}
+	}
+
+	function show_table(){
+		window.location.href='table.html';
+	}
+	//删除
+
+		function deletePoint(delete_key) {
+            var x = banks[delete_key].x;
+			banks.splice(delete_key,1);
+			bank_amount--;
+            createMap();
+            setMapEvent();//设置地图事件
+            addMapControl();//向地图添加控件
+            addMapOverlay();//向地图添加覆盖物
+
+            for(var i=0;i<bank_amount;i++)
+            {
+
+                makeMarker(i);
+
+            }
+
+
+            conn.Execute("DELETE FROM bank WHERE x="+x+";");
+
+
+	}
+
+	
+    var map;
+      initMap();
+	   if(window.ActiveXObject)
+	 {
+		connDB();
+		alert("数据库链接成功");
+	 }
+	 else{
+
+		alert("不支持数据库链接");
+           banks[0] = new bank (120.573406,31.299477,"12324","12345","12344",0);
+           bank_amount = 1;
+	 }
+	  
+
+  </script>
+  </body>
+</html>
